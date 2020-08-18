@@ -32,7 +32,7 @@ type oracle_data_proof_t = {
   requestPacket: request_packet_t,
   responsePacket: response_packet_t,
   version: int,
-  iavl_merkle_paths: list(iavl_merkle_path_t),
+  iavlMerklePaths: list(iavl_merkle_path_t),
 };
 
 type multi_store_proof_t = {
@@ -109,7 +109,7 @@ let decodeOracleDataProof = json => {
     requestPacket: json |> field("requestPacket", decodeRequestPacket),
     responsePacket: json |> field("responsePacket", decodeResponsePacket),
     version: json |> field("version", intstr),
-    iavl_merkle_paths: json |> field("merklePaths", list(decodeIAVLMerklePath)),
+    iavlMerklePaths: json |> field("merklePaths", list(decodeIAVLMerklePath)),
   };
 };
 
@@ -186,7 +186,7 @@ let rec encode =
   fun
   | RequestPacket({clientID, oracleScriptID, calldata, askCount, minCount}) => {
       Obi.encode(
-        {j|{clientID: string, oracleScriptID: u64, calldata: bytes, askCount: u64, minCount: u64}/{_:u64}|j},
+        "{clientID: string, oracleScriptID: u64, calldata: bytes, askCount: u64, minCount: u64}/{_:u64}",
         "input",
         [|
           {fieldName: "clientID", fieldValue: clientID},
@@ -207,7 +207,7 @@ let rec encode =
       result,
     }) => {
       Obi.encode(
-        {j|{clientID: string, requestID: u64, ansCount: u64, requestTime: u64, resolveTime: u64, resolveStatus: u32, result: bytes}/{_:u64}|j},
+        "{clientID: string, requestID: u64, ansCount: u64, requestTime: u64, resolveTime: u64, resolveStatus: u32, result: bytes}/{_:u64}",
         "input",
         [|
           {fieldName: "clientID", fieldValue: clientID},
@@ -222,7 +222,7 @@ let rec encode =
     }
   | IAVLMerklePath({isDataOnRight, subtreeHeight, subtreeSize, subtreeVersion, siblingHash}) => {
       Obi.encode(
-        {j|{isDataOnRight: u8, subtreeHeight: u8, subtreeSize: u64, subtreeVersion: u64, siblingHash: bytes}/{_:u64}|j},
+        "{isDataOnRight: u8, subtreeHeight: u8, subtreeSize: u64, subtreeVersion: u64, siblingHash: bytes}/{_:u64}",
         "input",
         [|
           {fieldName: "isDataOnRight", fieldValue: isDataOnRight ? "1" : "0"},
@@ -233,8 +233,8 @@ let rec encode =
         |],
       );
     }
-  | IAVLMerklePaths(list_of_iavl_merkle_paths) => {
-      list_of_iavl_merkle_paths
+  | IAVLMerklePaths(iavl_merkle_paths) => {
+      iavl_merkle_paths
       |> Belt_List.map(_, x => encode(IAVLMerklePath(x)))
       |> Belt_List.reduce(_, Some(JsBuffer.from([||])), (a, b) =>
            switch (a, b) {
@@ -243,10 +243,7 @@ let rec encode =
            }
          )
       |> Belt_Option.map(_, x =>
-           JsBuffer.concat([|
-             obi_encode_int(list_of_iavl_merkle_paths |> Belt_List.length, "u32"),
-             x,
-           |])
+           JsBuffer.concat([|obi_encode_int(iavl_merkle_paths |> Belt_List.length, "u32"), x|])
          );
     }
   | MultiStoreProof({
@@ -287,7 +284,7 @@ let rec encode =
     }
   | Signature({r, s, v, signedPrefixSuffix, signedDataSuffix}) => {
       Obi.encode(
-        {j|{r: bytes, s: bytes, v: u8, signedPrefixSuffix: bytes, signedDataSuffix: bytes}/{_:u64}|j},
+        "{r: bytes, s: bytes, v: u8, signedPrefixSuffix: bytes, signedDataSuffix: bytes}/{_:u64}",
         "input",
         [|
           {fieldName: "r", fieldValue: r |> JsBuffer.toHex(~with0x=true)},
@@ -304,8 +301,8 @@ let rec encode =
         |],
       );
     }
-  | Signatures(list_of_tm_signatures) => {
-      list_of_tm_signatures
+  | Signatures(tm_signatures) => {
+      tm_signatures
       |> Belt_List.map(_, x => encode(Signature(x)))
       |> Belt_List.reduce(_, Some(JsBuffer.from([||])), (a, b) =>
            switch (a, b) {
@@ -314,15 +311,12 @@ let rec encode =
            }
          )
       |> Belt_Option.map(_, x =>
-           JsBuffer.concat([|
-             obi_encode_int(list_of_tm_signatures |> Belt_List.length, "u32"),
-             x,
-           |])
+           JsBuffer.concat([|obi_encode_int(tm_signatures |> Belt_List.length, "u32"), x|])
          );
     }
   | Proof({
       blockHeight,
-      oracleDataProof: {requestPacket, responsePacket, version, iavl_merkle_paths},
+      oracleDataProof: {requestPacket, responsePacket, version, iavlMerklePaths},
       blockRelayProof: {multiStoreProof, blockHeaderMerkleParts, signatures},
     }) => {
       let%Opt encodeMultiStore = encode(MultiStoreProof(multiStoreProof));
@@ -331,17 +325,9 @@ let rec encode =
       let%Opt encodeSignatures = encode(Signatures(signatures));
       let%Opt encodeReq = encode(RequestPacket(requestPacket));
       let%Opt encodeRes = encode(ResponsePacket(responsePacket));
-      let%Opt encodeIAVLMerklePaths = encode(IAVLMerklePaths(iavl_merkle_paths));
+      let%Opt encodeIAVLMerklePaths = encode(IAVLMerklePaths(iavlMerklePaths));
       Obi.encode(
-        {j|{
-          blockHeight: u64,
-          multiStore: bytes,
-          blockMerkleParts: bytes,
-          signatures: bytes,
-          packet: bytes,
-          version: u64,
-          iavlPaths: bytes
-        }/{_:u64}|j},
+        "{blockHeight: u64, multiStore: bytes, blockMerkleParts: bytes, signatures: bytes, packet: bytes, version: u64, iavlPaths: bytes}/{_:u64}",
         "input",
         [|
           {fieldName: "blockHeight", fieldValue: blockHeight |> string_of_int},
