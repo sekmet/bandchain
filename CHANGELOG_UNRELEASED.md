@@ -27,6 +27,7 @@
 - (impv) [\#2456](https://github.com/bandprotocol/bandchain/pull/2456) Changed exit_code and external_id from int to string
 
 ### Bridges
+
 - (feat) [\#2385](https://github.com/bandprotocol/bandchain/pull/2385) Add icon bridge.
 
 ### Runtime
